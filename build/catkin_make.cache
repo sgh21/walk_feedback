@@ -1,0 +1,2 @@
+
+-DCATKIN_DEVEL_PREFIX=/home/sgh/workspace/walk_feedback/devel -DCMAKE_INSTALL_PREFIX=/home/sgh/workspace/walk_feedback/install -G Unix Makefiles
