@@ -1,5 +1,5 @@
 # walk_feedback
 + This library is just for walk_feedback group
 + verson:1.0
-+ author:Shen Guanghui,Zhou Jinyin,Fu Hao,  
++ maintainer:Shen Guanghui,Zhou Jinyin,Fu Hao,  
 &emsp;&emsp;&emsp;Gao Jiaowei,Luo Qianrui,Song Guangtai
