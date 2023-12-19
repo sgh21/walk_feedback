@@ -75,7 +75,7 @@ class zmp_walker:
 delimiter=",",comments="#",max_rows=34,invalid_raise=False)
         print(param)
         param_leg=np.genfromtxt(fname=param_path,
-dtype=float,delimiter=",",comments="#",skip_header=35, max_rows=42,invalid_raise=False)
+dtype=float,delimiter=",",comments="#",skip_header=35, max_rows=46,invalid_raise=False)
         print(param_leg)
         return param,param_leg
     def set_vel_loop(self):

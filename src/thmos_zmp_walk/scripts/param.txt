@@ -40,9 +40,6 @@
 0,0,0,0,0,0
 #'motor_offset_right' : 
 0.03,0,0,0.08,0,0
-#'leg_rod_length' : 
-0.156,0.12,0.045
-#'full_leg_length' :
-0.31
+
 
 
