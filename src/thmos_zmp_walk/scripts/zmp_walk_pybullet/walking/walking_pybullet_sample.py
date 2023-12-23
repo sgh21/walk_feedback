@@ -33,7 +33,7 @@ if __name__ == '__main__':
   planeId = p.loadURDF("plane.urdf", [0, 0, 0])
   urdfpath =os.path.dirname(os.path.abspath(__file__)) + "/../urdf/thmos_urdf.urdf"
   print(urdfpath)
-  RobotId = p.loadURDF(urdfpath, [0, 0, 0.43],useFixedBase = True)  #0.43
+  RobotId = p.loadURDF(urdfpath, [0, 0, 0.37],useFixedBase = True)  #0.43
 
 
   index = {p.getBodyInfo(RobotId)[0].decode('UTF-8'):-1,}
@@ -75,12 +75,12 @@ if __name__ == '__main__':
             'motor_offset_left' :param_leg[2],
             'motor_offset_right' :param_leg[3],
             'full_leg_length' :0.31,
-            'feedback_coef' :[1.0,1.0,1.0], #(yaw->th, pitch->x, roll->y)
+            'feedback_coef' :[0,0.001,0.001], #(yaw->th, pitch->x, roll->y)
             'feedback_rotation_coef' :1.13137, #0.8*sqrt(2)
 
             }
-
-  walk = walking(**Params)
+  print("---------\nParams=\n", Params)
+  walk = walking(RobotId, **Params)
   j = 0
   n = 0
   k = 0

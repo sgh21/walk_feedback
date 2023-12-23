@@ -49,7 +49,7 @@ class imu_Subscriber(object):
         self.robotId = robotid
 
         t = threading.Timer(0.01, self.imu_callback)
-        t.start
+        t.start()
 
 
 
@@ -60,9 +60,9 @@ class imu_Subscriber(object):
         self.quaternion_to_rpy(orn)
         
 
-        wx_new = (1.0 - filter) * w[0] + filter * self.wx
-        wy_new = (1.0 - filter) * w[1] + filter * self.wy
-        wz_new = (1.0 - filter) * w[2] + filter * self.wz
+        wx_new = (1.0 - self.filter) * w[0] + self.filter * self.wx
+        wy_new = (1.0 - self.filter) * w[1] + self.filter * self.wy
+        wz_new = (1.0 - self.filter) * w[2] + self.filter * self.wz
 
         self.bx = (wx_new - self.wx) * 100
         self.by = (wy_new - self.wy) * 100
@@ -75,6 +75,11 @@ class imu_Subscriber(object):
 
        
         self.imu_ready = True
+        #print("imu ready! w=", self.wx, self.wy, self.wz)
+
+        global t
+        t = threading.Timer(0.01, self.imu_callback)
+        t.start()
 
 
     def quaternion_to_rpy(self, quaternion):

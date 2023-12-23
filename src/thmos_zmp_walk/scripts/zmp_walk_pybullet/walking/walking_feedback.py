@@ -13,7 +13,7 @@ from preview_control import *
 from imu_data import *
 
 class walking():
-  def __init__(self, **WalkParams):
+  def __init__(self, robotID, **WalkParams):
 
     # load params
     for key, value in WalkParams.items():
@@ -23,7 +23,7 @@ class walking():
     self.kine = THMOSLegIK(self.way_left, self.way_right, self.leg_rod_length)
     self.pc = preview_control(self.dt, self.optimize_period, self.com_height)
     self.fsp = foot_step_planner(self.max_vx, self.max_vy, self.max_vth, self.walking_period, self.foot_width, self.plan_step_num)
-    self.imu = imu_Subscriber(0.5)
+    self.imu = imu_Subscriber(robotID, 0.5)
 
     # init status 
     self.status = 'start'
@@ -163,12 +163,16 @@ class walking():
 
     # initialize feedback params
     if period-len(self.pattern_old) == start_up:
-      self.fb_th_off = 0
-      self.fb_x_off = 0
-      self.fb_y_off = 0
-      self.fb_h_off = 0
+      self.fb_l_th_off = 0
+      self.fb_l_x_off = 0
+      self.fb_l_y_off = 0
+      self.fb_l_h_off = 0
+      self.fb_r_th_off = 0
+      self.fb_r_x_off = 0
+      self.fb_r_y_off = 0
+      self.fb_r_h_off = 0
       self.yaw_goal = self.imu.yaw
-      self.pitch_goal = math.acos(0.5 * (self.foot_step_now[1] - self.foot_step_old[1]) / self.full_leg_length)
+      self.pitch_goal = 0.0
       self.roll_goal = 0.0
     
     # caculate offset and foot height
@@ -188,14 +192,19 @@ class walking():
           self.left_off = self.left_off_g.copy()
 
       # calculate imu feedback control offset
-      self.fb_th_off += self.feedback_coef[0] * (self.yaw_goal - self.imu.yaw)
       pitch_beta = self.feedback_rotation_coef * math.sqrt(self.trunk_height / 9.8)
-      #TODO: check the direction of wx
-      pitch_preview = 0.5 * self.imu.pitch * math.cosh(pitch_beta * len(self.pattern_old) * self.dt) + self.imu.wx * pitch_beta * math.sinh(pitch_beta * len(self.pattern_old) * self.dt)
-      self.fb_x_off += self.feedback_coef[1] * (self.pitch_goal - pitch_preview) ** 3
+      #TODO: check the direction of w
+      pitch_preview = 0.5 * self.imu.pitch * math.cosh(pitch_beta * len(self.pattern_old) * self.dt) + self.imu.wy * pitch_beta * math.sinh(pitch_beta * len(self.pattern_old) * self.dt)
+      self.fb_l_x_off += self.feedback_coef[1] * (self.pitch_goal - pitch_preview)
+      roll_beta = self.feedback_rotation_coef * math.sqrt(self.trunk_height / 9.8)
+      roll_preview = 0.5 * (self.imu.roll - math.asin(0.5 * self.foot_width / self.trunk_height)) * math.cosh(roll_beta * len(self.pattern_old) * self.dt) + self.imu.wx * pitch_beta * math.sinh(roll_beta * len(self.pattern_old) * self.dt) + math.asin(0.5 * self.foot_width / self.trunk_height)
+      self.fb_l_y_off += self.feedback_coef[2] * (self.roll_goal - roll_preview)
+
+      print("left step offset: ", self.fb_l_x_off, self.fb_l_y_off)
 
     if self.foot_step_old[4] == 'left':
-
+      # next step is right
+      
       # up or down foot
       if start_up < (period-len(self.pattern_old)) <= end_up:
         self.right_up += self.foot_h/period_up
@@ -208,14 +217,25 @@ class walking():
         if (period-len(self.pattern)) > (start_up + period_up * 2):
           self.right_off = self.right_off_g.copy()
 
+      # calculate imu feedback control offset
+      pitch_beta = self.feedback_rotation_coef * math.sqrt(self.trunk_height / 9.8)
+      #TODO: check the direction of w
+      pitch_preview = 0.5 * self.imu.pitch * math.cosh(pitch_beta * len(self.pattern_old) * self.dt) + self.imu.wy * pitch_beta * math.sinh(pitch_beta * len(self.pattern_old) * self.dt)
+      self.fb_r_x_off += self.feedback_coef[1] * (self.pitch_goal - pitch_preview)
+      roll_beta = self.feedback_rotation_coef * math.sqrt(self.trunk_height / 9.8)
+      roll_preview = 0.5 * (self.imu.roll + math.asin(0.5 * self.foot_width / self.trunk_height)) * math.cosh(roll_beta * len(self.pattern_old) * self.dt) + self.imu.wx * pitch_beta * math.sinh(roll_beta * len(self.pattern_old) * self.dt) - math.asin(0.5 * self.foot_width / self.trunk_height)
+      self.fb_r_y_off += self.feedback_coef[2] * (self.roll_goal - roll_preview)
+
+      print("right step offset: ", self.fb_r_x_off, self.fb_r_y_off)
+
     self.th = (self.foot_step_now[3]-self.foot_step_old[3])/period * (period-len(self.pattern_old)) + self.foot_step_old[3]
     
     # caculate foot pos
     lo = self.left_off  - np.block([[X[0,0:2],0]])
     ro = self.right_off - np.block([[X[0,0:2],0]])
     
-    left_foot  = [lo[0,0] + self.com_x_offset, lo[0,1] + self.com_y_offset + self.ex_foot_width, self.left_up-  self.trunk_height, 0.0, 0.0, self.th-lo[0,2]]
-    right_foot = [ro[0,0] + self.com_x_offset, ro[0,1] + self.com_y_offset - self.ex_foot_width, self.right_up- self.trunk_height, 0.0, 0.0, self.th-ro[0,2]]
+    left_foot  = [lo[0,0] + self.com_x_offset + self.fb_l_x_off, lo[0,1] + self.com_y_offset + self.ex_foot_width + self.fb_l_y_off, self.left_up-  self.trunk_height, 0.0, 0.0, self.th-lo[0,2]]
+    right_foot = [ro[0,0] + self.com_x_offset + self.fb_r_x_off, ro[0,1] + self.com_y_offset - self.ex_foot_width + self.fb_r_y_off, self.right_up- self.trunk_height, 0.0, 0.0, self.th-ro[0,2]]
 
     l_joint_angles = self.kine.LegIKMove('left',left_foot)
     r_joint_angles = self.kine.LegIKMove('right',right_foot)
