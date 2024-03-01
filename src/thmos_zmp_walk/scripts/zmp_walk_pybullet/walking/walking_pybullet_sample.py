@@ -16,7 +16,7 @@ from zmp_imu import *
 def read_txt():
         # sys.path.append(sys.path[0] + '/param.txt')
         # param_path=sys.path[-1]
-        param_path="D:\THMOS\git workspace\walk_feedback\src\\thmos_zmp_walk\scripts\param.txt"	
+        param_path="param.txt"	
         param=np.genfromtxt(fname=param_path,dtype=float,delimiter=",",comments="#",max_rows=34,invalid_raise=False)
         print(param)
         param_leg=np.genfromtxt(fname=param_path,dtype=float,delimiter=",",comments="#",skip_header=35, max_rows=46,invalid_raise=False)
@@ -33,7 +33,9 @@ if __name__ == '__main__':
   planeId = p.loadURDF("plane.urdf", [0, 0, 0])
   urdfpath =os.path.dirname(os.path.abspath(__file__)) + "/../urdf/thmos_urdf.urdf"
   print(urdfpath)
-  RobotId = p.loadURDF(urdfpath, [0, 0, 0.37],useFixedBase = True)  #0.43
+  startPos = [0, 0, 0.37]
+  startOrientation = p.getQuaternionFromEuler([0, 0, 0])
+  RobotId = p.loadURDF(urdfpath, startPos, startOrientation, useFixedBase = False)  #set False to detach the robot
 
 
   index = {p.getBodyInfo(RobotId)[0].decode('UTF-8'):-1,}
@@ -75,7 +77,7 @@ if __name__ == '__main__':
             'motor_offset_left' :param_leg[2],
             'motor_offset_right' :param_leg[3],
             'full_leg_length' :0.31,
-            'feedback_coef' :[0,0.001,0.001], #(yaw->th, pitch->x, roll->y)
+            'feedback_coef' :[0,0,0.006], #(yaw->th, pitch->x, roll->y : 0.006)
             'feedback_rotation_coef' :1.13137, #0.8*sqrt(2)
 
             }
@@ -90,7 +92,7 @@ if __name__ == '__main__':
   
   # add pybullet
   robo = THMOSGym(RobotId)
-  head_arm = [0,0, 0,0,0, 0,0,0]
+  head_arm = [0,0, 0.52,1.22,1.5, -0.52,-1.22,-1.5]
   leg_right = [0,0,0, 0,0,0]
   leg_left = [0,0,0, 0,0,0]
   robo.RoboStep(head_arm + leg_right + leg_left,maxForce=12.5)

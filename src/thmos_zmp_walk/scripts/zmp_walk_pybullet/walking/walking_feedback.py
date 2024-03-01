@@ -56,6 +56,22 @@ class walking():
     self.pattern_now = []
     self.pattern_new_old = []
     self.pattern_new_now = []
+
+    # initialize feeedback params
+    self.fb_l_th_off = 0
+    self.fb_l_x_off = 0
+    self.fb_l_y_off = 0
+
+    self.fb_r_th_off = 0
+    self.fb_r_x_off = 0
+    self.fb_r_y_off = 0
+
+
+    self.fb_y_limit_in = 0.012  # step point offset due to feedback at y axis limit inwards
+    self.fb_y_limit_out = 0.035 # step point offset due to feedback at y axis limit outwards
+    self.yaw_goal = self.imu.yaw
+    self.pitch_goal = 0.0
+    self.roll_goal = 0.0
     
     self.setGoalVel()
     return
@@ -63,6 +79,7 @@ class walking():
   def setGoalVel(self, vel = None):
     '''get vel command and be a state machine'''
     if ((vel == None or (self.old_vel[0] == vel[0] and self.old_vel[1] == vel[1] and self.old_vel[2] == vel[2])) and len(self.foot_step) > self.min_foot_step_len):
+      
       del self.foot_step[0]
     else:
       if len(self.foot_step) > 2:
@@ -161,16 +178,34 @@ class walking():
     # make drop slowly
     period_do = period - end_up - start_up
 
-    # initialize feedback params
-    if period-len(self.pattern_old) == start_up:
+    # initialize feedback params before start up
+    if period-len(self.pattern_old) <= start_up:
+      self.fb_l_th_off_d = self.fb_l_th_off / period
+      self.fb_l_x_off_d = self.fb_l_x_off / period
+      self.fb_l_y_off_d = self.fb_l_y_off / period
+#      self.fb_l_h_off = 0
+      self.fb_r_th_off_d = self.fb_r_th_off / period
+      self.fb_r_x_off_d = self.fb_r_x_off / period
+      self.fb_r_y_off_d = self.fb_r_y_off / period
+#      self.fb_r_h_off = 0
+    elif period-len(self.pattern_old) < start_up:
+      self.fb_l_th_off -= self.fb_l_th_off_d
+      self.fb_l_x_off -= self.fb_l_x_off_d
+      self.fb_l_y_off -= self.fb_l_y_off_d
+
+      self.fb_r_th_off -= self.fb_r_th_off_d
+      self.fb_r_x_off -= self.fb_r_x_off_d
+      self.fb_r_y_off -= self.fb_r_y_off_d
+
+    elif period-len(self.pattern_old) == start_up:
       self.fb_l_th_off = 0
       self.fb_l_x_off = 0
       self.fb_l_y_off = 0
-      self.fb_l_h_off = 0
+
       self.fb_r_th_off = 0
       self.fb_r_x_off = 0
       self.fb_r_y_off = 0
-      self.fb_r_h_off = 0
+
       self.yaw_goal = self.imu.yaw
       self.pitch_goal = 0.0
       self.roll_goal = 0.0
@@ -191,6 +226,14 @@ class walking():
         if (period-len(self.pattern)) > (start_up + period_up * 2):
           self.left_off = self.left_off_g.copy()
 
+
+      if period-len(self.pattern_old) == start_up:
+        self.fb_l_th_off = 0
+        self.fb_l_x_off = 0
+        self.fb_l_y_off = 0
+      self.fb_r_th_off -= self.fb_r_th_off_d
+      self.fb_r_x_off -= self.fb_r_x_off_d
+      self.fb_r_y_off -= self.fb_r_y_off_d
       # calculate imu feedback control offset
       pitch_beta = self.feedback_rotation_coef * math.sqrt(self.trunk_height / 9.8)
       #TODO: check the direction of w
@@ -199,6 +242,10 @@ class walking():
       roll_beta = self.feedback_rotation_coef * math.sqrt(self.trunk_height / 9.8)
       roll_preview = 0.5 * (self.imu.roll - math.asin(0.5 * self.foot_width / self.trunk_height)) * math.cosh(roll_beta * len(self.pattern_old) * self.dt) + self.imu.wx * pitch_beta * math.sinh(roll_beta * len(self.pattern_old) * self.dt) + math.asin(0.5 * self.foot_width / self.trunk_height)
       self.fb_l_y_off += self.feedback_coef[2] * (self.roll_goal - roll_preview)
+      if self.fb_l_y_off < -self.fb_y_limit_out:
+        self.fb_l_y_off = -self.fb_y_limit_out
+      elif self.fb_l_y_off > self.fb_y_limit_in:
+        self.fb_l_y_off = self.fb_y_limit_in
 
       print("left step offset: ", self.fb_l_x_off, self.fb_l_y_off)
 
@@ -217,6 +264,13 @@ class walking():
         if (period-len(self.pattern)) > (start_up + period_up * 2):
           self.right_off = self.right_off_g.copy()
 
+      if period-len(self.pattern_old) == start_up:
+        self.fb_r_th_off = 0
+        self.fb_r_x_off = 0
+        self.fb_r_y_off = 0
+      self.fb_l_th_off -= self.fb_l_th_off_d
+      self.fb_l_x_off -= self.fb_l_x_off_d
+      self.fb_l_y_off -= self.fb_l_y_off_d
       # calculate imu feedback control offset
       pitch_beta = self.feedback_rotation_coef * math.sqrt(self.trunk_height / 9.8)
       #TODO: check the direction of w
@@ -225,6 +279,10 @@ class walking():
       roll_beta = self.feedback_rotation_coef * math.sqrt(self.trunk_height / 9.8)
       roll_preview = 0.5 * (self.imu.roll + math.asin(0.5 * self.foot_width / self.trunk_height)) * math.cosh(roll_beta * len(self.pattern_old) * self.dt) + self.imu.wx * pitch_beta * math.sinh(roll_beta * len(self.pattern_old) * self.dt) - math.asin(0.5 * self.foot_width / self.trunk_height)
       self.fb_r_y_off += self.feedback_coef[2] * (self.roll_goal - roll_preview)
+      if self.fb_r_y_off < -self.fb_y_limit_in:
+        self.fb_r_y_off = -self.fb_y_limit_in
+      elif self.fb_r_y_off > self.fb_y_limit_out:
+        self.fb_r_y_off = self.fb_y_limit_out
 
       print("right step offset: ", self.fb_r_x_off, self.fb_r_y_off)
 
